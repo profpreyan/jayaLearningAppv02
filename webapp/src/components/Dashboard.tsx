@@ -291,7 +291,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
   return (
     <section className="dashboard">
       <header className="dashboard-header">
-        <div>
+        <div className="header-intro">
           <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1>
             {greeting}, {user.name}

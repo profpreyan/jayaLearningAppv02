@@ -112,7 +112,7 @@ const initialAssignments: Assignment[] = [
     summaryLines: [
       "Prepare 2 demo talking points",
       "Outline blockers that need support",
-      "Draft questions about this week’s content",
+      "Draft questions about this weekâ€™s content",
       "Upload supporting visuals",
       "Share the meeting agenda",
     ],
@@ -291,7 +291,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
   return (
     <section className="dashboard">
       <header className="dashboard-header">
-        <div>
+        <div className="header-intro">
           <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1>
             {greeting}, {user.name}
@@ -378,7 +378,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                       onClick={() => openModal({ type: "unlock", assignmentId: assignment.id })}
                       disabled={assignment.unlockCost > user.coins}
                     >
-                      Unlock Assignment · {assignment.unlockCost} coins
+                      Unlock Assignment Â· {assignment.unlockCost} coins
                     </button>
                     {assignment.unlockCost > user.coins && <p className="helper">Earn more coins by completing pending tasks.</p>}
                   </div>

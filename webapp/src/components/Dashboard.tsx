@@ -107,6 +107,8 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
   const [isLoading, setIsLoading] = useState(true);
   const [isActionBusy, setIsActionBusy] = useState(false);
   const previousLockedRef = useRef<Record<string, boolean>>({});
+  const hasInitializedExpandedRef = useRef(false);
+  const seenDefaultCardIdsRef = useRef<Set<string>>(new Set());
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -115,9 +117,52 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     return "Good evening";
   }, []);
 
-  const unlockedCount = assignments.filter((assignment) => !assignment.locked).length;
-  const completedCount = assignments.filter((assignment) => assignment.status !== "Pending").length;
-  const completionPercent = assignments.length ? Math.round((completedCount / assignments.length) * 100) : 0;
+  const submittedCount = assignments.filter(
+    (assignment) => assignment.status === "Submitted" || assignment.status === "Checked"
+  ).length;
+  const submittedPercent = assignments.length
+    ? Math.round((submittedCount / assignments.length) * 100)
+    : 0;
+  const weekNumbers = useMemo(() => {
+    const numbers = assignments
+      .map((assignment) => {
+        const match = assignment.slug.match(/week(\d+)/i);
+        if (!match) {
+          return null;
+        }
+        const parsed = Number.parseInt(match[1] ?? "", 10);
+        return Number.isFinite(parsed) ? parsed : null;
+      })
+      .filter((value): value is number => value !== null);
+    if (!numbers.length) {
+      return [] as number[];
+    }
+    const unique = Array.from(new Set(numbers));
+    unique.sort((a, b) => a - b);
+    return unique;
+  }, [assignments]);
+  const totalWeeks = weekNumbers.length ? weekNumbers[weekNumbers.length - 1] : 0;
+  const currentWeek = useMemo(() => {
+    const currentAssignment = assignments.find((assignment) => assignment.isCurrentDay);
+    if (currentAssignment) {
+      const match = currentAssignment.slug.match(/week(\d+)/i);
+      if (match) {
+        const parsed = Number.parseInt(match[1] ?? "", 10);
+        if (Number.isFinite(parsed)) {
+          return parsed;
+        }
+      }
+    }
+    if (weekNumbers.length) {
+      return weekNumbers[weekNumbers.length - 1];
+    }
+    return 0;
+  }, [assignments, weekNumbers]);
+  const weekProgressPercent = totalWeeks
+    ? Math.max(0, Math.min(100, Math.round((currentWeek / totalWeeks) * 100)))
+    : 0;
+  const weeklyRewardEstimate = submittedCount * 15;
+  const monthlyRewardEstimate = weeklyRewardEstimate * 4;
   const hasMoodResponses = Boolean(
     moodResponses.emotion || moodResponses.motivation || moodResponses.energy
   );
@@ -136,20 +181,29 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
       setAssignments(nextAssignments);
       setExpandedCards((prev) => {
         const allowed = new Set(nextAssignments.filter((item) => !item.locked).map((item) => item.id));
-        const persisted = prev.filter((id) => allowed.has(id));
-        const defaults = nextAssignments
+        const filteredPrev = prev.filter((id) => allowed.has(id));
+        const defaultIds = nextAssignments
           .filter((item) => allowed.has(item.id) && (item.isCurrentDay || item.status !== "Pending"))
           .map((item) => item.id);
-        if (persisted.length === 0) {
-          return defaults;
-        }
-        const merged = [...persisted];
-        for (const id of defaults) {
-          if (!merged.includes(id)) {
-            merged.push(id);
+
+        const newlySeenDefaults: string[] = [];
+        for (const id of defaultIds) {
+          if (!seenDefaultCardIdsRef.current.has(id)) {
+            newlySeenDefaults.push(id);
+            seenDefaultCardIdsRef.current.add(id);
           }
         }
-        return merged;
+
+        if (!hasInitializedExpandedRef.current) {
+          hasInitializedExpandedRef.current = true;
+          return Array.from(new Set([...filteredPrev, ...defaultIds]));
+        }
+
+        if (newlySeenDefaults.length > 0) {
+          return [...filteredPrev, ...newlySeenDefaults.filter((id) => !filteredPrev.includes(id))];
+        }
+
+        return filteredPrev;
       });
       onUserChange({
         ...user,
@@ -174,6 +228,8 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
   useEffect(() => {
     if (!assignments.length) {
       previousLockedRef.current = {};
+      hasInitializedExpandedRef.current = false;
+      seenDefaultCardIdsRef.current.clear();
       return;
     }
 
@@ -407,25 +463,37 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
           </p>
         </div>
         <div className="metrics" role="group" aria-label="Status metrics">
-          <div className="metric" tabIndex={0} title="Coins you can spend unlocking future work">
-            <span className="metric-icon" aria-hidden="true">??</span>
-            <div>
-              <p className="metric-label">Coins</p>
-              <p className="metric-value">{user.coins}</p>
+          <div className="metric-counters">
+            <div className="metric" tabIndex={0} title="Coins you can spend unlocking future work">
+              <span className="metric-icon" aria-hidden="true">??</span>
+              <div>
+                <p className="metric-label">Coins</p>
+                <p className="metric-value">{user.coins}</p>
+              </div>
+            </div>
+            <div className="metric" tabIndex={0} title="Keep your streak alive with daily submissions">
+              <span className="metric-icon" aria-hidden="true">??</span>
+              <div>
+                <p className="metric-label">Streak</p>
+                <p className="metric-value">{user.streak} days</p>
+              </div>
+            </div>
+            <div className="metric" tabIndex={0} title="Badges show completed milestones">
+              <span className="metric-icon" aria-hidden="true">??</span>
+              <div>
+                <p className="metric-label">Badges</p>
+                <p className="metric-value">{user.badges}</p>
+              </div>
             </div>
           </div>
-          <div className="metric" tabIndex={0} title="Keep your streak alive with daily submissions">
-            <span className="metric-icon" aria-hidden="true">??</span>
-            <div>
-              <p className="metric-label">Streak</p>
-              <p className="metric-value">{user.streak} days</p>
+          <div className="metric-rewards">
+            <div className="reward" title="Projected coins you can earn for this week's submissions">
+              <p className="reward-label">Weekly reward</p>
+              <p className="reward-value">+{weeklyRewardEstimate} coins</p>
             </div>
-          </div>
-          <div className="metric" tabIndex={0} title="Badges show completed milestones">
-            <span className="metric-icon" aria-hidden="true">??</span>
-            <div>
-              <p className="metric-label">Badges</p>
-              <p className="metric-value">{user.badges}</p>
+            <div className="reward" title="Projected coins you can earn across the month">
+              <p className="reward-label">Monthly reward</p>
+              <p className="reward-value">+{monthlyRewardEstimate} coins</p>
             </div>
           </div>
         </div>
@@ -434,16 +502,24 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
       <main className="dashboard-body" aria-busy={isLoading}>
         <section className="week-context">
           <div className="week-copy">
-            <p className="eyebrow">Week Progress</p>
-            <h2>Week 4 of 12</h2>
-            <p className="helper">{completedCount} of {assignments.length} assignments completed</p>
+            <p className="eyebrow">Cohort timeline</p>
+            <h2>
+              Week {currentWeek || "—"} of {totalWeeks || "—"}
+            </h2>
+            <p className="helper">
+              {totalWeeks
+                ? `You're currently pacing through week ${currentWeek} of ${totalWeeks}.`
+                : "We'll update your cohort schedule soon."}
+            </p>
           </div>
-          <div className="week-progress" aria-label="Weekly progress">
+          <div className="week-progress" aria-label="Cohort week progress">
             <div className="progress-track">
               <div className="progress-shell">
-                <div className="progress-bar" style={{ width: `${completionPercent}%` }} />
+                <div className="progress-bar" style={{ width: `${weekProgressPercent}%` }} />
               </div>
-              <span className="progress-label">{completionPercent}%</span>
+              <span className="progress-label week-progress-label">
+                {totalWeeks ? `Week ${currentWeek}/${totalWeeks}` : "No data"}
+              </span>
             </div>
             <div className="resource-links">
               <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer">
@@ -580,16 +656,20 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
 
       <footer className="dashboard-footer">
         <div className="footer-heading">
-          <p className="eyebrow">Weekly Completion</p>
-          <strong>{completionPercent}% complete</strong>
+          <p className="eyebrow">Assignments submitted</p>
+          <strong>
+            {submittedCount} / {assignments.length}
+          </strong>
         </div>
-        <div className="progress-track" aria-label="Overall weekly completion">
+        <div className="progress-track" aria-label="Assignments submitted">
           <div className="progress-shell">
-            <div className="progress-bar" style={{ width: `${completionPercent}%` }} />
+            <div className="progress-bar" style={{ width: `${submittedPercent}%` }} />
           </div>
-          <span className="progress-label">{completionPercent}%</span>
+          <span className="progress-label">{submittedPercent}%</span>
         </div>
-        <p className="motivation">Keep the streak alive! You've unlocked {unlockedCount} out of {assignments.length} assignments.</p>
+        <p className="motivation">
+          Keep the streak alive! You've submitted {submittedCount} out of {assignments.length} assignments.
+        </p>
       </footer>
 
       {modalState?.type === "unlock" && (

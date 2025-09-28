@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { useToast } from "./ToastContext";
 import type { LoginResult } from "./LoginScreen";
@@ -106,6 +106,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
   const [formError, setFormError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionBusy, setIsActionBusy] = useState(false);
+  const previousLockedRef = useRef<Record<string, boolean>>({});
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -169,6 +170,34 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
       void refreshDashboard();
     }
   }, [user.role, refreshDashboard]);
+
+  useEffect(() => {
+    if (!assignments.length) {
+      previousLockedRef.current = {};
+      return;
+    }
+
+    const newlyUnlocked: string[] = [];
+    for (const assignment of assignments) {
+      const wasLocked = previousLockedRef.current[assignment.id];
+      if (wasLocked === true && !assignment.locked) {
+        newlyUnlocked.push(assignment.id);
+      }
+      previousLockedRef.current[assignment.id] = assignment.locked;
+    }
+
+    if (newlyUnlocked.length > 0) {
+      setExpandedCards((prev) => {
+        const next = [...prev];
+        for (const id of newlyUnlocked) {
+          if (!next.includes(id)) {
+            next.push(id);
+          }
+        }
+        return next;
+      });
+    }
+  }, [assignments]);
 
   function toggleCard(id: string) {
     setExpandedCards((prev) =>
@@ -404,24 +433,27 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
 
       <main className="dashboard-body" aria-busy={isLoading}>
         <section className="week-context">
-          <div>
+          <div className="week-copy">
             <p className="eyebrow">Week Progress</p>
             <h2>Week 4 of 12</h2>
             <p className="helper">{completedCount} of {assignments.length} assignments completed</p>
           </div>
-          <div className="progress-shell" aria-label="Weekly progress">
-            <div className="progress-bar" style={{ width: `${completionPercent}%` }} />
-            <span className="progress-label">{completionPercent}%</span>
+          <div className="week-progress" aria-label="Weekly progress">
+            <div className="progress-track">
+              <div className="progress-shell">
+                <div className="progress-bar" style={{ width: `${completionPercent}%` }} />
+              </div>
+              <span className="progress-label">{completionPercent}%</span>
+            </div>
+            <div className="resource-links">
+              <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer">
+                Custom GPT for the Week
+              </a>
+              <a href="https://www.notion.so" target="_blank" rel="noopener noreferrer">
+                Notebook for the Week
+              </a>
+            </div>
           </div>
-        </section>
-
-        <section className="resource-links">
-          <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer">
-            Custom GPT for the Week
-          </a>
-          <a href="https://www.notion.so" target="_blank" rel="noopener noreferrer">
-            Notebook for the Week
-          </a>
         </section>
 
         <section className="assignment-list" aria-label="Weekly assignments">
@@ -430,8 +462,12 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
             const draft = drafts[assignment.id];
             const statusLabel = assignment.locked ? "Locked" : assignment.status;
             const statusClass = assignment.locked ? "status-pill locked" : cardStatusClass(assignment.status);
+            const cardStateClass = assignment.locked ? "locked" : isExpanded ? "expanded" : "collapsed";
             return (
-              <article key={assignment.id} className={`assignment-card ${assignment.isCurrentDay ? "current" : ""} ${assignment.locked ? "locked" : ""}`}>
+              <article
+                key={assignment.id}
+                className={`assignment-card ${assignment.isCurrentDay ? "current" : ""} ${cardStateClass}`}
+              >
                 <header>
                   <button
                     type="button"
@@ -441,8 +477,11 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                     aria-expanded={isExpanded}
                     aria-controls={`assignment-${assignment.id}`}
                   >
-                    <div>
-                      <p className="eyebrow">{assignment.day}</p>
+                    <div className="card-heading">
+                      <div className="day-row">
+                        <p className="eyebrow">{assignment.day}</p>
+                        <span className="due">{assignment.due}</span>
+                      </div>
                       <h3>{assignment.title}</h3>
                     </div>
                     <span className={statusClass}>{statusLabel}</span>
@@ -466,12 +505,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                 )}
                 {isExpanded && (
                   <div className="card-body" id={`assignment-${assignment.id}`}>
-                    <ul>
-                      {assignment.summaryLines.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                    <p className="due">{assignment.due}</p>
+                    <p className="summary">{assignment.summaryLines.join(" ")}</p>
                     <div className="card-actions">
                       <button
                         type="button"
@@ -545,9 +579,15 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
       </main>
 
       <footer className="dashboard-footer">
-        <div>
+        <div className="footer-heading">
           <p className="eyebrow">Weekly Completion</p>
           <strong>{completionPercent}% complete</strong>
+        </div>
+        <div className="progress-track" aria-label="Overall weekly completion">
+          <div className="progress-shell">
+            <div className="progress-bar" style={{ width: `${completionPercent}%` }} />
+          </div>
+          <span className="progress-label">{completionPercent}%</span>
         </div>
         <p className="motivation">Keep the streak alive! You've unlocked {unlockedCount} out of {assignments.length} assignments.</p>
       </footer>

@@ -112,8 +112,10 @@ export function MoodFlow({ onComplete, onExit }: MoodFlowProps) {
             aria-checked={currentValue === option.value}
           >
             <span aria-hidden="true" className="emoji">{option.emoji}</span>
-            <span className="label">{option.label}</span>
-            <span className="description">{option.description}</span>
+            <span className="mood-copy">
+              <span className="label">{option.label}</span>
+              <span className="description">{option.description}</span>
+            </span>
           </button>
         ))}
       </div>

@@ -174,11 +174,11 @@ button {
   gap: 14px;
 }
 
+
 .mood-option {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
   padding: 14px 18px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -190,6 +190,15 @@ button {
 
 .mood-option .emoji {
   font-size: 24px;
+  line-height: 1;
+}
+
+.mood-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
 }
 
 .mood-option.selected {
@@ -211,23 +220,6 @@ button {
   font-size: 13px;
   color: var(--text-secondary);
   margin: 0;
-}
-
-.resource-links {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.resource-links a {
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(255, 91, 106, 0.14);
-  color: var(--text-primary);
-}
-
-.resource-links a:hover {
-  background: rgba(255, 91, 106, 0.22);
 }
 
 .dashboard {
@@ -277,19 +269,61 @@ button {
   font-weight: 600;
 }
 
+.resource-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.resource-links a {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 91, 106, 0.14);
+  color: var(--text-primary);
+}
+
+.resource-links a:hover {
+  background: rgba(255, 91, 106, 0.22);
+}
+
 .week-context {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
+  gap: 24px;
   padding: 18px 24px;
   border-radius: 18px;
   background: rgba(18, 22, 32, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+}
+
+.week-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.week-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-end;
+  flex: 1;
+  min-width: 260px;
+}
+
+.progress-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .progress-shell {
   position: relative;
-  width: 200px;
+  width: 100%;
   height: 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -306,9 +340,14 @@ button {
 }
 
 .progress-label {
-  margin-left: 12px;
   font-size: 14px;
   color: var(--text-secondary);
+  min-width: 48px;
+  text-align: right;
+}
+
+.week-progress .resource-links {
+  justify-content: flex-end;
 }
 
 .assignment-list {
@@ -340,9 +379,32 @@ button {
   padding: 22px 24px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 18px;
   cursor: pointer;
   color: inherit;
+}
+
+.card-toggle:disabled {
+  cursor: not-allowed;
+}
+
+.card-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-heading .due {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .status-pill {
@@ -376,18 +438,13 @@ button {
   padding: 0 24px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
-.card-body ul {
+.card-body .summary {
   margin: 0;
-  padding-left: 20px;
   color: var(--text-secondary);
-}
-
-.due {
-  font-size: 13px;
-  color: var(--muted);
+  line-height: 1.5;
 }
 
 .card-actions {
@@ -396,8 +453,33 @@ button {
   align-items: center;
 }
 
+.card-body .card-actions {
+  margin-top: 12px;
+}
+
 .card-actions .action-spacer {
   flex: 1;
+}
+
+.card-actions .btn-primary {
+  border-radius: 9px;
+}
+
+.locked-body {
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.assignment-card.collapsed .card-toggle h3 {
+  filter: blur(6px);
+  opacity: 0.3;
+}
+
+.assignment-card.locked .card-toggle h3 {
+  filter: blur(4px);
+  opacity: 0.35;
 }
 
 .hint-panel {
@@ -410,12 +492,27 @@ button {
 
 .dashboard-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 16px;
   padding: 18px 24px;
   background: rgba(18, 22, 30, 0.72);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.footer-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.dashboard-footer .progress-track {
+  align-items: center;
+}
+
+.dashboard-footer .progress-label {
+  min-width: 56px;
 }
 
 .motivation {

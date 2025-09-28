@@ -1,8 +1,8 @@
 .app-shell {
   min-height: 100vh;
   padding: 60px 24px 90px;
-  background: radial-gradient(circle at top right, rgba(87, 62, 140, 0.35), transparent 60%),
-    radial-gradient(circle at bottom left, rgba(34, 107, 160, 0.25), transparent 55%),
+  background: radial-gradient(circle at top right, rgba(255, 60, 60, 0.4), transparent 60%),
+    radial-gradient(circle at bottom left, rgba(170, 0, 0, 0.3), transparent 55%),
     #111318;
   display: flex;
   align-items: center;
@@ -20,7 +20,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  color: #f0f3fb;
+  color: #f5f5f5;
 }
 
 .login-panel h1,
@@ -38,14 +38,14 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 12px;
-  color: #94a3c6;
+  color: #ff4d4d;
   margin: 0;
 }
 
 .helper {
   font-size: 12px;
   margin: 6px 0 0;
-  color: #9ba8c9;
+  color: #f5f5f5;
 }
 
 .helper.error {
@@ -53,12 +53,12 @@
 }
 
 .helper.hint {
-  color: #9ba8c9;
+  color: #ffcccc;
 }
 
 .prompt {
   font-size: 18px;
-  color: #e2e8ff;
+  color: #ffffff;
   margin: 0;
 }
 
@@ -74,7 +74,7 @@
   border-radius: 15px;
   border: 1px solid transparent;
   background: rgba(21, 25, 33, 0.65);
-  color: #f7f9ff;
+  color: #ffffff;
 }
 
 .login-form input:focus,
@@ -117,20 +117,20 @@
 
 .btn-secondary {
   background: rgba(255, 255, 255, 0.08);
-  color: #e9edf5;
+  color: #f5f5f5;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn-tertiary {
   background: transparent;
-  color: #9ba8c9;
+  color: #ffb3b3;
   min-height: auto;
   padding: 0;
 }
 
 .btn-link {
   background: transparent;
-  color: #63b1ff;
+  color: #ff4d4d;
   text-decoration: underline;
   min-height: auto;
   padding: 0;
@@ -155,7 +155,7 @@
   gap: 12px;
   cursor: pointer;
   text-align: left;
-  color: #f3f6ff;
+  color: #f5f5f5;
 }
 
 .mood-option .emoji {
@@ -173,7 +173,7 @@
 .mood-option .description {
   grid-column: 2 / -1;
   font-size: 14px;
-  color: #b9c4e3;
+  color: #ffbdbd;
 }
 
 .mood-option.selected {
@@ -193,7 +193,7 @@
 
 .step-indicator {
   font-size: 12px;
-  color: #9ba8c9;
+  color: #ffb3b3;
   margin: 0;
   text-align: right;
 }
@@ -206,7 +206,7 @@
   display: flex;
   flex-direction: column;
   gap: 36px;
-  color: #f0f4ff;
+  color: #f5f5f5;
   position: relative;
 }
 
@@ -251,7 +251,7 @@
 
 .metric-label {
   margin: 0 0 3px;
-  color: #9ba8c9;
+  color: #ffbdbd;
   font-size: 12px;
   text-transform: uppercase;
 }
@@ -293,7 +293,7 @@
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #63b1ff, #5a7dff);
+  background: linear-gradient(90deg, #ff5c5c, #b30000);
 }
 
 .progress-label {
@@ -301,7 +301,7 @@
   top: -24px;
   right: 0;
   font-size: 12px;
-  color: #c6d4ff;
+  color: #ffd6d6;
 }
 
 .resource-links {
@@ -314,7 +314,7 @@
   padding: 12px 18px;
   border-radius: 12px;
   background: rgba(42, 47, 54, 0.55);
-  color: #63b1ff;
+  color: #ff4d4d;
   font-weight: 500;
 }
 
@@ -373,23 +373,23 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: rgba(144, 152, 180, 0.25);
-  color: #cfd8ff;
+  background: rgba(255, 68, 68, 0.18);
+  color: #ffd6d6;
 }
 
 .status-pill.checked {
-  background: rgba(76, 208, 139, 0.25);
-  color: #76f0b0;
+  background: rgba(255, 68, 68, 0.28);
+  color: #ff6666;
 }
 
 .status-pill.submitted {
-  background: rgba(99, 177, 255, 0.25);
-  color: #9ed0ff;
+  background: rgba(255, 68, 68, 0.22);
+  color: #ff7f7f;
 }
 
 .status-pill.pending {
-  background: rgba(255, 186, 120, 0.25);
-  color: #ffc999;
+  background: rgba(255, 68, 68, 0.2);
+  color: #ff8585;
 }
 
 .status-pill.locked {
@@ -430,8 +430,8 @@
 }
 
 .card-body li::before {
-  content: "•";
-  color: #63b1ff;
+  content: "ï¿½";
+  color: #ff4d4d;
   line-height: 1;
 }
 
@@ -448,14 +448,14 @@
 .due {
   margin: 0;
   font-size: 12px;
-  color: #b0bfdd;
+  color: #ffd6d6;
 }
 
 .hint-panel {
-  background: rgba(99, 177, 255, 0.12);
+  background: rgba(255, 68, 68, 0.12);
   border-radius: 15px;
   padding: 15px 18px;
-  color: #d8ebff;
+  color: #ffdada;
 }
 
 .dashboard-footer {
@@ -470,7 +470,7 @@
 .motivation {
   margin: 0;
   font-size: 15px;
-  color: #e9edf5;
+  color: #f5f5f5;
 }
 
 .toast-region {
@@ -490,19 +490,19 @@
   align-items: center;
   gap: 18px;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-  color: #f4f7ff;
+  color: #f5f5f5;
 }
 
 .toast-success {
-  border-left: 3px solid #76f0b0;
+  border-left: 3px solid #ff6666;
 }
 
 .toast-error {
-  border-left: 3px solid #ff7b7b;
+  border-left: 3px solid #ff1f1f;
 }
 
 .toast-info {
-  border-left: 3px solid #63b1ff;
+  border-left: 3px solid #ff9999;
 }
 
 .toast button {
@@ -548,7 +548,7 @@
 .modal-header button {
   border: none;
   background: transparent;
-  color: #f4f7ff;
+  color: #f5f5f5;
   font-size: 21px;
   cursor: pointer;
 }
@@ -557,7 +557,7 @@
   display: grid;
   gap: 12px;
   font-size: 15px;
-  color: #dbe5ff;
+  color: #f5f5f5;
 }
 
 .modal-footer {
@@ -577,7 +577,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 12px 15px;
-  color: #f7f9ff;
+  color: #ffffff;
 }
 
 @media (max-width: 1199px) {

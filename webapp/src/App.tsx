@@ -1,13 +1,20 @@
 import "./App.css";
 import { useCallback, useEffect, useState } from "react";
 import { Dashboard } from "./components/Dashboard";
+import { AdminDashboard } from "./components/AdminDashboard";
 import type { LoginResult } from "./components/LoginScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { MoodFlow } from "./components/MoodFlow";
 import type { MoodResponses } from "./components/MoodFlow";
 import { ToastProvider, useToast } from "./components/ToastContext";
+import {
+  fetchUserByCode,
+  logMoodEntry,
+  recordLoginEvent,
+  updateLearnerProfile,
+} from "./lib/dataAccess";
 
-type Stage = "login" | "mood" | "dashboard";
+type Stage = "login" | "mood" | "learner-dashboard" | "admin-dashboard";
 
 function millisecondsUntilNextThreePmIST(from: Date): number {
   const istOffsetMinutes = 330;
@@ -33,31 +40,79 @@ function AppContent() {
   const { pushToast } = useToast();
 
   async function authenticate(code: string): Promise<LoginResult> {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const normalized = code.toUpperCase();
-    const learnerNames = ["Jaya", "Avery", "Morgan", "Priya", "Taylor"];
-    const hash = normalized.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const chosenName = learnerNames[hash % learnerNames.length];
-    const profile: LoginResult = {
-      name: chosenName,
-      code: normalized,
-      coins: 65,
-      streak: 6,
-      badges: 3,
+    const result = await fetchUserByCode(code);
+
+    if (!result) {
+      throw new Error("This user does not exist. Check your code.");
+    }
+
+    const { user: supabaseUser, learnerProfile: profile } = result;
+
+    if (supabaseUser.role === "admin") {
+      const adminProfile: LoginResult = {
+        userId: supabaseUser.id,
+        profileId: null,
+        role: "admin",
+        name: supabaseUser.full_name,
+        code: supabaseUser.code,
+        coins: 0,
+        streak: 0,
+        badges: 0,
+      };
+      setUser(adminProfile);
+      setStage("admin-dashboard");
+      return adminProfile;
+    }
+
+    if (!profile) {
+      throw new Error("Learner profile not found for this code. Contact your mentor.");
+    }
+
+    const learnerResult: LoginResult = {
+      userId: supabaseUser.id,
+      profileId: profile.id,
+      role: "learner",
+      name: profile.display_name || supabaseUser.full_name,
+      code: supabaseUser.code,
+      coins: profile.coins_balance,
+      streak: profile.streak_days,
+      badges: profile.badges_earned,
     };
-    setUser(profile);
+
+    const loginTimestamp = new Date().toISOString();
+
+    setUser(learnerResult);
+
+    await Promise.all([
+      recordLoginEvent(supabaseUser.id, "webapp-login"),
+      updateLearnerProfile(supabaseUser.id, {
+        last_login_at: loginTimestamp,
+        total_check_ins: profile.total_check_ins + 1,
+      }),
+    ]);
+
     setStage("mood");
-    return profile;
+    return learnerResult;
   }
 
   function handleMoodComplete(responses: MoodResponses) {
     setMoodResponses(responses);
+    if (user?.role === "learner") {
+      logMoodEntry(user.userId, {
+        emotion: responses.emotion,
+        motivation: responses.motivation,
+        energy: responses.energy,
+      }).catch((error) => {
+        const message = error instanceof Error ? error.message : "Unable to save mood check right now.";
+        pushToast(message, "error");
+      });
+    }
     pushToast("Mood check saved. Have a focused session!", "success");
-    setStage("dashboard");
+    setStage("learner-dashboard");
   }
 
   function handleExitMoodFlow() {
-    setStage("dashboard");
+    setStage("learner-dashboard");
   }
 
   const resetSession = useCallback(() => {
@@ -67,7 +122,7 @@ function AppContent() {
   }, [setMoodResponses, setStage, setUser]);
 
   useEffect(() => {
-    if (stage !== "dashboard") {
+    if (stage !== "learner-dashboard") {
       return;
     }
 
@@ -96,12 +151,15 @@ function AppContent() {
           onExit={handleExitMoodFlow}
         />
       )}
-      {stage === "dashboard" && user && (
+      {stage === "learner-dashboard" && user && (
         <Dashboard
           user={user}
           moodResponses={moodResponses}
           onUserChange={setUser}
         />
+      )}
+      {stage === "admin-dashboard" && user && user.role === "admin" && (
+        <AdminDashboard admin={user} />
       )}
     </div>
   );

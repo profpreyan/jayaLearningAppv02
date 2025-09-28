@@ -1,11 +1,24 @@
 import type { ChangeEvent } from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal } from "./Modal";
 import { useToast } from "./ToastContext";
 import type { LoginResult } from "./LoginScreen";
 import type { MoodResponses } from "./MoodFlow";
+import {
+  fetchLearnerDashboardState,
+  submitAssignmentSubmission,
+  updateLearnerProfile,
+  upsertAssignmentProgress,
+} from "../lib/dataAccess";
+import { getPublicUrl } from "../lib/storage";
+import type {
+  AssignmentProgressRecord,
+  AssignmentRecord,
+  AssignmentStatus as AssignmentStatusType,
+  LearnerProfileRecord,
+} from "../types/database";
 
-export type AssignmentStatus = "Pending" | "Submitted" | "Checked";
+export type AssignmentStatus = AssignmentStatusType;
 
 type ModalState =
   | { type: "unlock"; assignmentId: string }
@@ -13,8 +26,14 @@ type ModalState =
   | { type: "submit"; assignmentId: string }
   | null;
 
-interface Assignment {
+interface AssignmentAsset {
+  path: string;
+  url: string;
+}
+
+interface AssignmentCard {
   id: string;
+  slug: string;
   day: string;
   title: string;
   summaryLines: string[];
@@ -25,6 +44,14 @@ interface Assignment {
   hintCost: number;
   isCurrentDay: boolean;
   hints: string[];
+  hintsUnlocked: boolean;
+  submissionLink: string | null;
+  submissionNotes: string | null;
+  submissionAssets: AssignmentAsset[];
+  submittedAt: string | null;
+  feedback: string | null;
+  coinsSpentOnUnlocks: number;
+  coinsSpentOnHints: number;
 }
 
 interface SubmissionDraft {
@@ -38,155 +65,47 @@ interface DashboardProps {
   onUserChange: (user: LoginResult) => void;
 }
 
-const initialAssignments: Assignment[] = [
-  {
-    id: "mon",
-    day: "Monday",
-    title: "Kickoff Reflection",
-    summaryLines: [
-      "Share a win from last week",
-      "List your top 3 learning goals",
-      "Record one question for your mentor",
-      "Describe the environment you are working in",
-      "Estimate 2 hours for deep work",
-    ],
-    due: "Due Monday by 8 PM",
-    status: "Checked",
-    locked: false,
-    unlockCost: 0,
-    hintCost: 3,
-    isCurrentDay: false,
-    hints: [
-      "Focus on specific, measurable goals to help your mentor respond.",
-      "Use the question to unblock a challenge you encountered recently.",
-    ],
-  },
-  {
-    id: "tue",
-    day: "Tuesday",
-    title: "Concept Drill",
-    summaryLines: [
-      "Watch the Chapter 3 walkthrough",
-      "Summarize the 3 core takeaways",
-      "Implement the sample snippet",
-      "Note one area to improve",
-      "Upload your edited code",
-    ],
-    due: "Due Tuesday by 8 PM",
-    status: "Submitted",
-    locked: false,
-    unlockCost: 0,
-    hintCost: 4,
-    isCurrentDay: false,
-    hints: [
-      "Keep your summary under 120 words for quick review.",
-      "Highlight the snippet differences so mentors can scan fast.",
-    ],
-  },
-  {
-    id: "wed",
-    day: "Wednesday",
-    title: "Project Milestone",
-    summaryLines: [
-      "Complete user research interviews",
-      "Translate findings into 3 insights",
-      "Upload the interview notes",
-      "Sketch a draft solution",
-      "Define one success metric",
-    ],
-    due: "Due Wednesday by 8 PM",
-    status: "Pending",
-    locked: false,
-    unlockCost: 0,
-    hintCost: 5,
-    isCurrentDay: true,
-    hints: [
-      "Use quotes from interviews to back each insight.",
-      "Choose a metric you can actually capture this week.",
-    ],
-  },
-  {
-    id: "thu",
-    day: "Thursday",
-    title: "Mentor Sync Prep",
-    summaryLines: [
-      "Prepare 2 demo talking points",
-      "Outline blockers that need support",
-      "Draft questions about this week’s content",
-      "Upload supporting visuals",
-      "Share the meeting agenda",
-    ],
-    due: "Unlock to view due date",
-    status: "Pending",
-    locked: true,
-    unlockCost: 10,
-    hintCost: 6,
-    isCurrentDay: false,
-    hints: [
-      "Think about where your mentor can remove ambiguity.",
-      "Your agenda should include time for feedback loops.",
-    ],
-  },
-  {
-    id: "fri",
-    day: "Friday",
-    title: "Demo Day Rehearsal",
-    summaryLines: [
-      "Record a short walkthrough video",
-      "List feedback from teammates",
-      "Plan updates before next sprint",
-      "Upload revised slides",
-      "Leave a link to your rehearsal clip",
-    ],
-    due: "Unlock to view due date",
-    status: "Pending",
-    locked: true,
-    unlockCost: 12,
-    hintCost: 6,
-    isCurrentDay: false,
-    hints: [
-      "Keep the walkthrough under 5 minutes for quick critique.",
-      "Capture action items in bullet points for clarity.",
-    ],
-  },
-  {
-    id: "week",
-    day: "Weekend Wrap",
-    title: "Weekly Reflection",
-    summaryLines: [
-      "Summarize your biggest insight",
-      "Call out one blocker",
-      "Set your intention for next week",
-      "Upload any supporting artifacts",
-      "Celebrate a win from the week",
-    ],
-    due: "Unlock to view due date",
-    status: "Pending",
-    locked: true,
-    unlockCost: 8,
-    hintCost: 5,
-    isCurrentDay: false,
-    hints: [
-      "Use the blocker call-out to request mentor support early.",
-      "Intentions work best when they include a measurable target.",
-    ],
-  },
-];
+function mapAssignment(assignment: AssignmentRecord, progress: AssignmentProgressRecord | null): AssignmentCard {
+  const assetPaths = progress?.submission_asset_paths ?? [];
+  const submissionAssets: AssignmentAsset[] = assetPaths.map((path) => ({
+    path,
+    url: getPublicUrl(path),
+  }));
+
+  return {
+    id: assignment.id,
+    slug: assignment.slug,
+    day: assignment.day_label,
+    title: assignment.title,
+    summaryLines: assignment.summary_lines,
+    due: assignment.due_label,
+    status: progress?.status ?? assignment.base_status,
+    locked: progress?.locked ?? assignment.is_locked_by_default,
+    unlockCost: assignment.unlock_cost,
+    hintCost: assignment.hint_cost,
+    isCurrentDay: assignment.is_current_day,
+    hints: assignment.hints,
+    hintsUnlocked: progress?.hints_unlocked ?? false,
+    submissionLink: progress?.submission_link ?? null,
+    submissionNotes: progress?.submission_notes ?? null,
+    submissionAssets,
+    submittedAt: progress?.submitted_at ?? null,
+    feedback: progress?.feedback ?? null,
+    coinsSpentOnUnlocks: progress?.coins_spent_on_unlocks ?? 0,
+    coinsSpentOnHints: progress?.coins_spent_on_hints ?? 0,
+  };
+}
 
 export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps) {
   const { pushToast } = useToast();
-  const [assignments, setAssignments] = useState(initialAssignments);
-  const [expandedCards, setExpandedCards] = useState(() =>
-    initialAssignments.filter((item) => !item.locked && (item.isCurrentDay || item.status !== "Pending")).map((item) => item.id)
-  );
+  const [profile, setProfile] = useState<LearnerProfileRecord | null>(null);
+  const [assignments, setAssignments] = useState<AssignmentCard[]>([]);
+  const [expandedCards, setExpandedCards] = useState<string[]>([]);
   const [modalState, setModalState] = useState<ModalState>(null);
   const [drafts, setDrafts] = useState<Record<string, SubmissionDraft>>({});
-  const [hintRevealed, setHintRevealed] = useState<Record<string, boolean>>({});
   const [formError, setFormError] = useState<string | null>(null);
-
-  const unlockedCount = assignments.filter((assignment) => !assignment.locked).length;
-  const completedCount = assignments.filter((assignment) => assignment.status !== "Pending").length;
-  const completionPercent = Math.round((completedCount / assignments.length) * 100);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isActionBusy, setIsActionBusy] = useState(false);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -195,55 +114,178 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     return "Good evening";
   }, []);
 
+  const unlockedCount = assignments.filter((assignment) => !assignment.locked).length;
+  const completedCount = assignments.filter((assignment) => assignment.status !== "Pending").length;
+  const completionPercent = assignments.length ? Math.round((completedCount / assignments.length) * 100) : 0;
+  const hasMoodResponses = Boolean(
+    moodResponses.emotion || moodResponses.motivation || moodResponses.energy
+  );
+
+  const refreshDashboard = useCallback(async () => {
+    if (user.role !== "learner") {
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const data = await fetchLearnerDashboardState(user.userId);
+      setProfile(data.profile);
+      const nextAssignments = data.assignments.map(({ assignment, progress }) =>
+        mapAssignment(assignment, progress)
+      );
+      setAssignments(nextAssignments);
+      setExpandedCards((prev) => {
+        const allowed = new Set(nextAssignments.filter((item) => !item.locked).map((item) => item.id));
+        const persisted = prev.filter((id) => allowed.has(id));
+        const defaults = nextAssignments
+          .filter((item) => allowed.has(item.id) && (item.isCurrentDay || item.status !== "Pending"))
+          .map((item) => item.id);
+        if (persisted.length === 0) {
+          return defaults;
+        }
+        const merged = [...persisted];
+        for (const id of defaults) {
+          if (!merged.includes(id)) {
+            merged.push(id);
+          }
+        }
+        return merged;
+      });
+      onUserChange({
+        ...user,
+        coins: data.profile.coins_balance,
+        streak: data.profile.streak_days,
+        badges: data.profile.badges_earned,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to load dashboard data.";
+      pushToast(message, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, onUserChange, pushToast]);
+
+  useEffect(() => {
+    if (user.role === "learner") {
+      void refreshDashboard();
+    }
+  }, [user.role, refreshDashboard]);
+
   function toggleCard(id: string) {
     setExpandedCards((prev) =>
       prev.includes(id) ? prev.filter((cardId) => cardId !== id) : [...prev, id]
     );
   }
 
-  function updateAssignment(assignmentId: string, updater: (assignment: Assignment) => Assignment) {
-    setAssignments((current) =>
-      current.map((assignment) =>
-        assignment.id === assignmentId ? updater(assignment) : assignment
-      )
-    );
-  }
-
   function openModal(state: Exclude<ModalState, null>) {
     setFormError(null);
+    if (state.type === "submit") {
+      setDrafts((prev) => {
+        if (prev[state.assignmentId]) {
+          return prev;
+        }
+        const assignment = assignments.find((item) => item.id === state.assignmentId);
+        if (!assignment) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [state.assignmentId]: {
+            link: assignment.submissionLink ?? "",
+            files: [],
+          },
+        };
+      });
+    }
     setModalState(state);
   }
 
   function closeModal() {
     setModalState(null);
     setFormError(null);
+    setIsActionBusy(false);
   }
 
-  function handleUnlock(assignmentId: string) {
+  async function handleUnlock(assignmentId: string) {
     const assignment = assignments.find((item) => item.id === assignmentId);
     if (!assignment) return;
-    if (assignment.unlockCost > user.coins) {
+    if (!assignment.locked) {
+      closeModal();
+      return;
+    }
+    const coinsAvailable = profile?.coins_balance ?? user.coins;
+    if (assignment.unlockCost > coinsAvailable) {
       pushToast("You do not have enough coins to unlock this assignment yet.", "error");
       return;
     }
-    onUserChange({ ...user, coins: user.coins - assignment.unlockCost });
-    updateAssignment(assignmentId, (item) => ({ ...item, locked: false }));
-    setExpandedCards((prev) => [...prev, assignmentId]);
-    pushToast(`${assignment.title} unlocked. Ready when you are!`, "success");
-    closeModal();
+    setIsActionBusy(true);
+    try {
+      const newBalance = coinsAvailable - assignment.unlockCost;
+      await updateLearnerProfile(user.userId, { coins_balance: newBalance });
+      await upsertAssignmentProgress({
+        assignmentId,
+        userId: user.userId,
+        link: assignment.submissionLink,
+        notes: assignment.submissionNotes,
+        assetPaths: assignment.submissionAssets.map((asset) => asset.path),
+        status: assignment.status,
+        hintsUnlocked: assignment.hintsUnlocked,
+        locked: false,
+        coinsSpentOnUnlocks: assignment.coinsSpentOnUnlocks + assignment.unlockCost,
+        coinsSpentOnHints: assignment.coinsSpentOnHints,
+      });
+      setProfile((prev) => (prev ? { ...prev, coins_balance: newBalance } : prev));
+      onUserChange({ ...user, coins: newBalance });
+      pushToast(`${assignment.title} unlocked. Ready when you are!`, "success");
+      closeModal();
+      await refreshDashboard();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to unlock assignment right now.";
+      pushToast(message, "error");
+    } finally {
+      setIsActionBusy(false);
+    }
   }
 
-  function handleHints(assignmentId: string) {
+  async function handleHints(assignmentId: string) {
     const assignment = assignments.find((item) => item.id === assignmentId);
     if (!assignment) return;
-    if (assignment.hintCost > user.coins) {
+    if (assignment.hintsUnlocked) {
+      pushToast("Hints are already unlocked for this assignment.", "info");
+      closeModal();
+      return;
+    }
+    const coinsAvailable = profile?.coins_balance ?? user.coins;
+    if (assignment.hintCost > coinsAvailable) {
       pushToast("Not enough coins for hints. Complete more work to earn them!", "error");
       return;
     }
-    onUserChange({ ...user, coins: user.coins - assignment.hintCost });
-    setHintRevealed((prev) => ({ ...prev, [assignmentId]: true }));
-    pushToast("Hints unlocked. Make the most of them!", "success");
-    closeModal();
+    setIsActionBusy(true);
+    try {
+      const newBalance = coinsAvailable - assignment.hintCost;
+      await updateLearnerProfile(user.userId, { coins_balance: newBalance });
+      await upsertAssignmentProgress({
+        assignmentId,
+        userId: user.userId,
+        link: assignment.submissionLink,
+        notes: assignment.submissionNotes,
+        assetPaths: assignment.submissionAssets.map((asset) => asset.path),
+        status: assignment.status,
+        hintsUnlocked: true,
+        locked: assignment.locked,
+        coinsSpentOnUnlocks: assignment.coinsSpentOnUnlocks,
+        coinsSpentOnHints: assignment.coinsSpentOnHints + assignment.hintCost,
+      });
+      setProfile((prev) => (prev ? { ...prev, coins_balance: newBalance } : prev));
+      onUserChange({ ...user, coins: newBalance });
+      pushToast("Hints unlocked. Make the most of them!", "success");
+      closeModal();
+      await refreshDashboard();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to unlock hints right now.";
+      pushToast(message, "error");
+    } finally {
+      setIsActionBusy(false);
+    }
   }
 
   function handleDraftChange(assignmentId: string, event: ChangeEvent<HTMLInputElement>) {
@@ -262,24 +304,53 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     setDrafts((prev) => ({
       ...prev,
       [assignmentId]: {
-        link: prev[assignmentId]?.link ?? "",
+        link: prev[assignmentId]?.link ?? assignments.find((item) => item.id === assignmentId)?.submissionLink ?? "",
         files: fileList,
       },
     }));
   }
 
-  function handleSubmitAssignment(assignmentId: string) {
+  async function handleSubmitAssignment(assignmentId: string) {
+    const assignment = assignments.find((item) => item.id === assignmentId);
+    if (!assignment) return;
     const draft = drafts[assignmentId];
-    if (!draft || (!draft.link && draft.files.length === 0)) {
+    const linkValue = draft?.link?.trim() ?? "";
+    const files = draft?.files ?? [];
+
+    if (!linkValue && files.length === 0 && !assignment.submissionLink && assignment.submissionAssets.length === 0) {
       setFormError("Add an external link or at least one image before submitting.");
       return;
     }
-    updateAssignment(assignmentId, (item) => ({
-      ...item,
-      status: "Submitted",
-    }));
-    pushToast("Submission received! Your mentor will review it soon.", "success");
-    closeModal();
+
+    setIsActionBusy(true);
+    setFormError(null);
+    try {
+      const submissionLink = linkValue.length ? linkValue : assignment.submissionLink;
+      await submitAssignmentSubmission({
+        userId: user.userId,
+        assignmentId,
+        link: submissionLink ?? null,
+        notes: assignment.submissionNotes,
+        files,
+        existingAssetPaths: assignment.submissionAssets.map((asset) => asset.path),
+        status: "Submitted",
+        hintsUnlocked: assignment.hintsUnlocked,
+        coinsSpentOnHints: assignment.coinsSpentOnHints,
+        coinsSpentOnUnlocks: assignment.coinsSpentOnUnlocks,
+      });
+      setDrafts((prev) => {
+        const { [assignmentId]: _removed, ...rest } = prev;
+        return rest;
+      });
+      pushToast("Submission received! Your mentor will review it soon.", "success");
+      closeModal();
+      await refreshDashboard();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to submit assignment right now.";
+      setFormError(message);
+    } finally {
+      setIsActionBusy(false);
+    }
   }
 
   function cardStatusClass(status: AssignmentStatus) {
@@ -288,15 +359,23 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     return "status-pill pending";
   }
 
+  if (user.role !== "learner") {
+    return null;
+  }
+
   return (
-    <section className="dashboard">
+    <section className={`dashboard ${isLoading ? "loading" : ""}`}>
       <header className="dashboard-header">
         <div className="header-intro">
           <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1>
             {greeting}, {user.name}
           </h1>
-          <p className="helper">Thanks for completing your mood check{moodResponses.emotion ? ", we logged your vibe." : "."}</p>
+          <p className="helper">
+            {hasMoodResponses
+              ? "Thanks for completing your mood check, we logged your vibe."
+              : "Jump into your focus block when you're ready."}
+          </p>
         </div>
         <div className="metrics" role="group" aria-label="Status metrics">
           <div className="metric" tabIndex={0} title="Coins you can spend unlocking future work">
@@ -323,7 +402,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
         </div>
       </header>
 
-      <main className="dashboard-body">
+      <main className="dashboard-body" aria-busy={isLoading}>
         <section className="week-context">
           <div>
             <p className="eyebrow">Week Progress</p>
@@ -378,9 +457,11 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                       onClick={() => openModal({ type: "unlock", assignmentId: assignment.id })}
                       disabled={assignment.unlockCost > user.coins}
                     >
-                      Unlock Assignment · {assignment.unlockCost} coins
+                      Unlock Assignment - {assignment.unlockCost} coins
                     </button>
-                    {assignment.unlockCost > user.coins && <p className="helper">Earn more coins by completing pending tasks.</p>}
+                    {assignment.unlockCost > user.coins && (
+                      <p className="helper">Earn more coins by completing pending tasks.</p>
+                    )}
                   </div>
                 )}
                 {isExpanded && (
@@ -396,8 +477,9 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                         type="button"
                         className="btn-link"
                         onClick={() => openModal({ type: "hint", assignmentId: assignment.id })}
+                        disabled={assignment.hintsUnlocked}
                       >
-                        Hints will cost you {assignment.hintCost} coins
+                        {assignment.hintsUnlocked ? "Hints unlocked" : `Hints will cost you ${assignment.hintCost} coins`}
                       </button>
                       <div className="action-spacer" />
                       <button
@@ -406,10 +488,14 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                         onClick={() => openModal({ type: "submit", assignmentId: assignment.id })}
                         disabled={assignment.status === "Checked"}
                       >
-                        {assignment.status === "Pending" ? "Submit Assignment" : assignment.status === "Submitted" ? "Edit Submission" : "Submission Locked"}
+                        {assignment.status === "Pending"
+                          ? "Submit Assignment"
+                          : assignment.status === "Submitted"
+                          ? "Edit Submission"
+                          : "Submission Locked"}
                       </button>
                     </div>
-                    {hintRevealed[assignment.id] && (
+                    {assignment.hintsUnlocked && assignment.hints.length > 0 && (
                       <div className="hint-panel" role="status">
                         <p className="eyebrow">Hints</p>
                         <ul>
@@ -418,6 +504,34 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                           ))}
                         </ul>
                       </div>
+                    )}
+                    {assignment.submissionLink && (
+                      <p className="helper">
+                        Submission link: {" "}
+                        <a href={assignment.submissionLink} target="_blank" rel="noopener noreferrer">
+                          Open work
+                        </a>
+                      </p>
+                    )}
+                    {assignment.submissionAssets.length > 0 && (
+                      <div className="submitted-assets">
+                        <p className="helper">Uploaded images:</p>
+                        <ul>
+                          {assignment.submissionAssets.map((asset) => (
+                            <li key={asset.path}>
+                              <a href={asset.url} target="_blank" rel="noopener noreferrer">
+                                View image
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {assignment.submittedAt && (
+                      <p className="helper">Submitted on {new Date(assignment.submittedAt).toLocaleString()}</p>
+                    )}
+                    {assignment.feedback && (
+                      <p className="helper" role="status">Mentor feedback: {assignment.feedback}</p>
                     )}
                     {draft?.files?.length ? (
                       <p className="helper">Draft in progress: {draft.files.length} file{draft.files.length > 1 ? "s" : ""} and {draft.link ? "a link" : "no link yet"}.</p>
@@ -442,7 +556,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
         <Modal
           title="Unlock assignment"
           onClose={closeModal}
-          primaryAction={{ label: "Confirm unlock", onClick: () => handleUnlock(modalState.assignmentId) }}
+          primaryAction={{ label: isActionBusy ? "Unlocking..." : "Confirm unlock", onClick: () => { void handleUnlock(modalState.assignmentId); }, disabled: isActionBusy }}
           secondaryAction={{ label: "Cancel", onClick: closeModal }}
         >
           <p>Spend coins to access this assignment early?</p>
@@ -453,7 +567,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
         <Modal
           title="Unlock hints"
           onClose={closeModal}
-          primaryAction={{ label: "Unlock hints", onClick: () => handleHints(modalState.assignmentId) }}
+          primaryAction={{ label: isActionBusy ? "Processing..." : "Unlock hints", onClick: () => { void handleHints(modalState.assignmentId); }, disabled: isActionBusy }}
           secondaryAction={{ label: "Not now", onClick: closeModal }}
         >
           <p>Hints cost coins but can save time. Continue?</p>
@@ -464,7 +578,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
         <Modal
           title="Submit assignment"
           onClose={closeModal}
-          primaryAction={{ label: "Submit", onClick: () => handleSubmitAssignment(modalState.assignmentId) }}
+          primaryAction={{ label: isActionBusy ? "Submitting..." : "Submit", onClick: () => { void handleSubmitAssignment(modalState.assignmentId); }, disabled: isActionBusy }}
           secondaryAction={{ label: "Cancel", onClick: closeModal }}
         >
           <form className="submission-form">
@@ -473,7 +587,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
               id="submission-link"
               type="url"
               placeholder="https://"
-              value={drafts[modalState.assignmentId]?.link ?? ""}
+              value={drafts[modalState.assignmentId]?.link ?? assignments.find((item) => item.id === modalState.assignmentId)?.submissionLink ?? ""}
               onChange={(event) => handleDraftChange(modalState.assignmentId, event)}
             />
             <label htmlFor="submission-files">Upload up to 10 images</label>
@@ -485,9 +599,9 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
               onChange={(event) => handleFileChange(modalState.assignmentId, event)}
             />
             {drafts[modalState.assignmentId]?.files?.length ? (
-              <p className="helper">{drafts[modalState.assignmentId].files.length} files selected.</p>
+              <p className="helper">{drafts[modalState.assignmentId].files.length} file{drafts[modalState.assignmentId].files.length > 1 ? "s" : ""} selected.</p>
             ) : (
-              <p className="helper">Choose images or add a link. At least one field is required.</p>
+              <p className="helper">Choose images or add a link. At least one field is helpful.</p>
             )}
             {formError && (
               <p className="helper error" role="alert">

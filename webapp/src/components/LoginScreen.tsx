@@ -2,6 +2,9 @@ import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 
 export interface LoginResult {
+  userId: string;
+  profileId: string | null;
+  role: "admin" | "learner";
   name: string;
   code: string;
   coins: number;

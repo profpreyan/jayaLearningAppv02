@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 :root {
   color-scheme: dark;
@@ -232,68 +232,85 @@ button {
 .dashboard-header {
   display: flex;
   justify-content: space-between;
-  gap: 24px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  max-height: 15vh;
 }
-
+.header-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 320px;
+  min-width: 260px;
+}
 .header-intro h1 {
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1.2;
 }
 
 .metrics {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
 }
 
 .metric-counters {
   display: flex;
-  gap: 18px;
+  gap: 16px;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
 }
 
 .metric {
   background: none;
   border: none;
-  padding: 6px 0;
-  min-width: 108px;
+  padding: 0;
+  min-width: 0;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   color: inherit;
 }
 
 .metric-icon {
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .metric-label {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .metric-value {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 
 .metric-rewards {
   display: flex;
-  gap: 24px;
-  align-items: flex-end;
+  gap: 16px;
+  align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .reward {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   align-items: flex-end;
+  text-align: right;
 }
 
 .reward-label {
@@ -313,30 +330,37 @@ button {
 
 .resource-links {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .resource-links a {
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(255, 91, 106, 0.14);
-  color: var(--text-primary);
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
-.resource-links a:hover {
-  background: rgba(255, 91, 106, 0.22);
+.resource-links a:hover,
+.resource-links a:focus-visible {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent-strong);
 }
 
 .week-context {
   display: flex;
   justify-content: space-between;
-  align-items: stretch;
+  align-items: center;
   gap: 24px;
-  padding: 18px 24px;
-  border-radius: 18px;
-  background: rgba(18, 22, 32, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
   flex-wrap: wrap;
 }
 
@@ -734,15 +758,19 @@ button {
 
 @media (max-width: 960px) {
   .dashboard-header {
-    flex-direction: column;
+    max-height: none;
+    align-items: flex-start;
+  }
+
+  .header-intro,
+  .metrics {
+    flex: 1 1 100%;
   }
 
   .metrics {
-    width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 }
-
 @media (max-width: 720px) {
   .panel {
     padding: 32px;
@@ -752,8 +780,8 @@ button {
     gap: 18px;
   }
 
-  .metric {
-    flex: 1;
+  .metrics {
+    justify-content: flex-start;
   }
 
   .admin-controls {
@@ -761,3 +789,4 @@ button {
     align-items: stretch;
   }
 }
+

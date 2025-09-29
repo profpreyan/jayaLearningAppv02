@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+﻿import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { useToast } from "../hooks/useToast";
@@ -96,6 +96,10 @@ function mapAssignment(assignment: AssignmentRecord, progress: AssignmentProgres
   };
 }
 
+const TIMELINE_OVERRIDE = {
+  currentWeek: 1,
+  totalWeeks: 12,
+} as const;
 export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps) {
   const { pushToast } = useToast();
   const [profile, setProfile] = useState<LearnerProfileRecord | null>(null);
@@ -141,8 +145,8 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     unique.sort((a, b) => a - b);
     return unique;
   }, [assignments]);
-  const totalWeeks = weekNumbers.length ? weekNumbers[weekNumbers.length - 1] : 0;
-  const currentWeek = useMemo(() => {
+  const derivedTotalWeeks = weekNumbers.length ? weekNumbers[weekNumbers.length - 1] : 0;
+  const derivedCurrentWeek = useMemo(() => {
     const currentAssignment = assignments.find((assignment) => assignment.isCurrentDay);
     if (currentAssignment) {
       const match = currentAssignment.slug.match(/week(\d+)/i);
@@ -158,6 +162,8 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     }
     return 0;
   }, [assignments, weekNumbers]);
+  const totalWeeks = TIMELINE_OVERRIDE.totalWeeks ?? derivedTotalWeeks;
+  const currentWeek = TIMELINE_OVERRIDE.currentWeek ?? derivedCurrentWeek;
   const weekProgressPercent = totalWeeks
     ? Math.max(0, Math.min(100, Math.round((currentWeek / totalWeeks) * 100)))
     : 0;
@@ -443,7 +449,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
 
   return (
     <section className={`dashboard ${isLoading ? "loading" : ""}`}>
-      <header className="dashboard-header">
+      <header className="dashboard-header" role="banner">
         <div className="header-intro">
           <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1>
@@ -458,21 +464,21 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
         <div className="metrics" role="group" aria-label="Status metrics">
           <div className="metric-counters">
             <div className="metric" tabIndex={0} title="Coins you can spend unlocking future work">
-              <span className="metric-icon" aria-hidden="true">??</span>
+              <span className="metric-icon" aria-hidden="true">💰</span>
               <div>
                 <p className="metric-label">Coins</p>
                 <p className="metric-value">{user.coins}</p>
               </div>
             </div>
             <div className="metric" tabIndex={0} title="Keep your streak alive with daily submissions">
-              <span className="metric-icon" aria-hidden="true">??</span>
+              <span className="metric-icon" aria-hidden="true">🔥</span>
               <div>
                 <p className="metric-label">Streak</p>
                 <p className="metric-value">{user.streak} days</p>
               </div>
             </div>
             <div className="metric" tabIndex={0} title="Badges show completed milestones">
-              <span className="metric-icon" aria-hidden="true">??</span>
+              <span className="metric-icon" aria-hidden="true">🏅</span>
               <div>
                 <p className="metric-label">Badges</p>
                 <p className="metric-value">{user.badges}</p>
@@ -497,7 +503,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
           <div className="week-copy">
             <p className="eyebrow">Cohort timeline</p>
             <h2>
-              Week {currentWeek || "—"} of {totalWeeks || "—"}
+              Week {currentWeek ?? "--"} of {totalWeeks ?? "--"}
             </h2>
             <p className="helper">
               {totalWeeks
@@ -515,11 +521,14 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
               </span>
             </div>
             <div className="resource-links">
-              <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer">
-                Custom GPT for the Week
+              <a href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">
+                Gemini Gem
               </a>
-              <a href="https://www.notion.so" target="_blank" rel="noopener noreferrer">
-                Notebook for the Week
+              <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer">
+                Custom GPT
+              </a>
+              <a href="https://noteboom.lk" target="_blank" rel="noopener noreferrer">
+                NoteboomLK
               </a>
             </div>
           </div>
@@ -727,3 +736,14 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+

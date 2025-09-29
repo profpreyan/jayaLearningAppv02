@@ -184,11 +184,11 @@ export interface SupabaseDatabase {
         Update: LoginEventUpdate;
       };
     };
-    Views: {};
-    Functions: {};
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
     Enums: {
       assignment_status: AssignmentStatus;
     };
-    CompositeTypes: {};
+    CompositeTypes: Record<string, never>;
   };
 }

@@ -1,7 +1,7 @@
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "./Modal";
-import { useToast } from "./ToastContext";
+import { useToast } from "../hooks/useToast";
 import type { LoginResult } from "./LoginScreen";
 import type { MoodResponses } from "./MoodFlow";
 import {
@@ -108,7 +108,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
   const [isActionBusy, setIsActionBusy] = useState(false);
   const previousLockedRef = useRef<Record<string, boolean>>({});
   const hasInitializedExpandedRef = useRef(false);
-  const seenDefaultCardIdsRef = useRef<Set<string>>(new Set());
+  const lastDefaultCardIdRef = useRef<string | null>(null);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -182,28 +182,20 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
       setExpandedCards((prev) => {
         const allowed = new Set(nextAssignments.filter((item) => !item.locked).map((item) => item.id));
         const filteredPrev = prev.filter((id) => allowed.has(id));
-        const defaultIds = nextAssignments
-          .filter((item) => allowed.has(item.id) && (item.isCurrentDay || item.status !== "Pending"))
-          .map((item) => item.id);
+        const currentAssignment = nextAssignments.find((item) => item.isCurrentDay && !item.locked);
+        const currentId = currentAssignment?.id ?? null;
+        const shouldApplyDefault =
+          currentId !== null && (!hasInitializedExpandedRef.current || lastDefaultCardIdRef.current !== currentId);
 
-        const newlySeenDefaults: string[] = [];
-        for (const id of defaultIds) {
-          if (!seenDefaultCardIdsRef.current.has(id)) {
-            newlySeenDefaults.push(id);
-            seenDefaultCardIdsRef.current.add(id);
-          }
+        let nextExpanded = filteredPrev;
+        if (shouldApplyDefault && currentId !== null && !filteredPrev.includes(currentId)) {
+          nextExpanded = [...filteredPrev, currentId];
         }
 
-        if (!hasInitializedExpandedRef.current) {
-          hasInitializedExpandedRef.current = true;
-          return Array.from(new Set([...filteredPrev, ...defaultIds]));
-        }
+        hasInitializedExpandedRef.current = true;
+        lastDefaultCardIdRef.current = currentId;
 
-        if (newlySeenDefaults.length > 0) {
-          return [...filteredPrev, ...newlySeenDefaults.filter((id) => !filteredPrev.includes(id))];
-        }
-
-        return filteredPrev;
+        return nextExpanded;
       });
       onUserChange({
         ...user,
@@ -229,7 +221,7 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
     if (!assignments.length) {
       previousLockedRef.current = {};
       hasInitializedExpandedRef.current = false;
-      seenDefaultCardIdsRef.current.clear();
+      lastDefaultCardIdRef.current = null;
       return;
     }
 
@@ -424,8 +416,9 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
         coinsSpentOnUnlocks: assignment.coinsSpentOnUnlocks,
       });
       setDrafts((prev) => {
-        const { [assignmentId]: _removed, ...rest } = prev;
-        return rest;
+        const nextDrafts = { ...prev };
+        delete nextDrafts[assignmentId];
+        return nextDrafts;
       });
       pushToast("Submission received! Your mentor will review it soon.", "success");
       closeModal();

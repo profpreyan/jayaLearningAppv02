@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useToast } from "./ToastContext";
+import { useToast } from "../hooks/useToast";
 import type { LoginResult } from "./LoginScreen";
 import {
   fetchAdminAssignmentOverview,

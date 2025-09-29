@@ -1,19 +1,6 @@
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-
-export type ToastTone = "success" | "error" | "info";
-
-export interface Toast {
-  id: string;
-  message: string;
-  tone: ToastTone;
-}
-
-type ToastContextValue = {
-  pushToast: (message: string, tone?: ToastTone) => void;
-};
-
-const ToastContext = createContext<ToastContextValue | undefined>(undefined);
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ToastContext, type Toast, type ToastTone } from "../context/toastContext";
 
 const TOAST_DURATION = 4000;
 
@@ -47,8 +34,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    const timersRef = timers.current;
     return () => {
-      Object.values(timers.current).forEach(clearTimeout);
+      Object.values(timersRef).forEach(clearTimeout);
     };
   }, []);
 
@@ -60,19 +48,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div key={toast.id} className={`toast toast-${toast.tone}`} role="status">
             <span>{toast.message}</span>
             <button type="button" onClick={() => removeToast(toast.id)} aria-label="Dismiss notification">
-              ×
+              Ã—
             </button>
           </div>
         ))}
       </div>
     </ToastContext.Provider>
   );
-}
-
-export function useToast() {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error("useToast must be used within a ToastProvider");
-  }
-  return context;
 }

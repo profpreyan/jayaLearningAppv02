@@ -6,7 +6,8 @@ import type { LoginResult } from "./components/LoginScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { MoodFlow } from "./components/MoodFlow";
 import type { MoodResponses } from "./components/MoodFlow";
-import { ToastProvider, useToast } from "./components/ToastContext";
+import { ToastProvider } from "./components/ToastContext";
+import { useToast } from "./hooks/useToast";
 import {
   fetchUserByCode,
   logMoodEntry,

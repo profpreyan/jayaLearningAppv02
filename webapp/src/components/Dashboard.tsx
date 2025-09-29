@@ -123,44 +123,9 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
   const submittedPercent = assignments.length
     ? Math.round((submittedCount / assignments.length) * 100)
     : 0;
-  const weekNumbers = useMemo(() => {
-    const numbers = assignments
-      .map((assignment) => {
-        const match = assignment.slug.match(/week(\d+)/i);
-        if (!match) {
-          return null;
-        }
-        const parsed = Number.parseInt(match[1] ?? "", 10);
-        return Number.isFinite(parsed) ? parsed : null;
-      })
-      .filter((value): value is number => value !== null);
-    if (!numbers.length) {
-      return [] as number[];
-    }
-    const unique = Array.from(new Set(numbers));
-    unique.sort((a, b) => a - b);
-    return unique;
-  }, [assignments]);
-  const totalWeeks = weekNumbers.length ? weekNumbers[weekNumbers.length - 1] : 0;
-  const currentWeek = useMemo(() => {
-    const currentAssignment = assignments.find((assignment) => assignment.isCurrentDay);
-    if (currentAssignment) {
-      const match = currentAssignment.slug.match(/week(\d+)/i);
-      if (match) {
-        const parsed = Number.parseInt(match[1] ?? "", 10);
-        if (Number.isFinite(parsed)) {
-          return parsed;
-        }
-      }
-    }
-    if (weekNumbers.length) {
-      return weekNumbers[weekNumbers.length - 1];
-    }
-    return 0;
-  }, [assignments, weekNumbers]);
-  const weekProgressPercent = totalWeeks
-    ? Math.max(0, Math.min(100, Math.round((currentWeek / totalWeeks) * 100)))
-    : 0;
+  const timelineCurrentWeek = 1;
+  const timelineTotalWeeks = 12;
+  const weekProgressPercent = Math.round((timelineCurrentWeek / timelineTotalWeeks) * 100);
   const weeklyRewardEstimate = submittedCount * 15;
   const monthlyRewardEstimate = weeklyRewardEstimate * 4;
   const hasMoodResponses = Boolean(
@@ -456,38 +421,34 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
           </p>
         </div>
         <div className="metrics" role="group" aria-label="Status metrics">
-          <div className="metric-counters">
-            <div className="metric" tabIndex={0} title="Coins you can spend unlocking future work">
-              <span className="metric-icon" aria-hidden="true">??</span>
-              <div>
-                <p className="metric-label">Coins</p>
-                <p className="metric-value">{user.coins}</p>
-              </div>
-            </div>
-            <div className="metric" tabIndex={0} title="Keep your streak alive with daily submissions">
-              <span className="metric-icon" aria-hidden="true">??</span>
-              <div>
-                <p className="metric-label">Streak</p>
-                <p className="metric-value">{user.streak} days</p>
-              </div>
-            </div>
-            <div className="metric" tabIndex={0} title="Badges show completed milestones">
-              <span className="metric-icon" aria-hidden="true">??</span>
-              <div>
-                <p className="metric-label">Badges</p>
-                <p className="metric-value">{user.badges}</p>
-              </div>
+          <div className="metric metric-with-icon" tabIndex={0} title="Coins you can spend unlocking future work">
+            <span className="metric-icon" aria-hidden="true">??</span>
+            <div>
+              <p className="metric-label">Coins</p>
+              <p className="metric-value">{user.coins}</p>
             </div>
           </div>
-          <div className="metric-rewards">
-            <div className="reward" title="Projected coins you can earn for this week's submissions">
-              <p className="reward-label">Weekly reward</p>
-              <p className="reward-value">+{weeklyRewardEstimate} coins</p>
+          <div className="metric metric-with-icon" tabIndex={0} title="Keep your streak alive with daily submissions">
+            <span className="metric-icon" aria-hidden="true">??</span>
+            <div>
+              <p className="metric-label">Streak</p>
+              <p className="metric-value">{user.streak} days</p>
             </div>
-            <div className="reward" title="Projected coins you can earn across the month">
-              <p className="reward-label">Monthly reward</p>
-              <p className="reward-value">+{monthlyRewardEstimate} coins</p>
+          </div>
+          <div className="metric metric-with-icon" tabIndex={0} title="Badges show completed milestones">
+            <span className="metric-icon" aria-hidden="true">??</span>
+            <div>
+              <p className="metric-label">Badges</p>
+              <p className="metric-value">{user.badges}</p>
             </div>
+          </div>
+          <div className="metric metric-summary" title="Projected coins you can earn for this week's submissions">
+            <p className="metric-label">Weekly reward</p>
+            <p className="metric-value">+{weeklyRewardEstimate} coins</p>
+          </div>
+          <div className="metric metric-summary" title="Projected coins you can earn across the month">
+            <p className="metric-label">Monthly reward</p>
+            <p className="metric-value">+{monthlyRewardEstimate} coins</p>
           </div>
         </div>
       </header>
@@ -497,12 +458,10 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
           <div className="week-copy">
             <p className="eyebrow">Cohort timeline</p>
             <h2>
-              Week {currentWeek || "—"} of {totalWeeks || "—"}
+              Week {timelineCurrentWeek} of {timelineTotalWeeks}
             </h2>
             <p className="helper">
-              {totalWeeks
-                ? `You're currently pacing through week ${currentWeek} of ${totalWeeks}.`
-                : "We'll update your cohort schedule soon."}
+              You're currently pacing through week {timelineCurrentWeek} of {timelineTotalWeeks}.
             </p>
           </div>
           <div className="week-progress" aria-label="Cohort week progress">
@@ -511,15 +470,18 @@ export function Dashboard({ user, moodResponses, onUserChange }: DashboardProps)
                 <div className="progress-bar" style={{ width: `${weekProgressPercent}%` }} />
               </div>
               <span className="progress-label week-progress-label">
-                {totalWeeks ? `Week ${currentWeek}/${totalWeeks}` : "No data"}
+                Week {timelineCurrentWeek}/{timelineTotalWeeks}
               </span>
             </div>
             <div className="resource-links">
-              <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer">
-                Custom GPT for the Week
+              <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer">
+                Gemini Gem
               </a>
-              <a href="https://www.notion.so" target="_blank" rel="noopener noreferrer">
-                Notebook for the Week
+              <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer">
+                Custom GPT
+              </a>
+              <a href="https://noteboomlk.com" target="_blank" rel="noopener noreferrer">
+                NoteboomLK
               </a>
             </div>
           </div>
